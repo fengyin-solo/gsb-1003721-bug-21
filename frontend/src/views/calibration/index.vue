@@ -43,14 +43,17 @@
       </thead>
       <tbody>
         <tr v-for="row in rows" :key="String(row.id)">
-          <td v-for="column in columns" :key="column">{{ row[column] ?? '—' }}</td>
+          <td v-for="column in columns" :key="column">{{ displayValue(row, column) }}</td>
           <td>{{ row.status }}</td>
           <td class="row-actions">
+            <RouterLink class="link" :to="`/calibration/${row.id}`">详情</RouterLink>
             <button
               v-for="action in actions"
               :key="action"
               class="link"
               type="button"
+              :disabled="isReadonly(row)"
+              :title="isReadonly(row) ? readonlyTitle(row) : ''"
               @click="runAction(action, row)"
             >
               {{ action }}
@@ -78,26 +81,59 @@ import {
   listEntries,
   moduleMeta,
   runAction as applyAction,
+  stationSnapshot,
 } from '@/api/local-service'
 import type { EntryRow } from '@/data/types'
 
 const meta = moduleMeta('calibration')
-const columns = ["记录编号", "仪器编号", "仪器名称", "检定单位", "检定日期", "有效期至", "检定结论", "检定状态"]
+const columns = ["记录编号", "仪器编号", "仪器名称", "所属站点", "检定单位", "检定日期", "有效期至", "检定结论", "检定状态"]
 const actions = ["送出检定", "确认合格", "标记不合格"]
 const statuses = ["待送检", "送检中", "已合格", "不合格", "已停用"]
-const stats = [{"label": "待送检仪器", "value": 0}, {"label": "已合格仪器", "value": 0}, {"label": "不合格仪器", "value": 0}]
 
 const rows = ref<EntryRow[]>([])
 const total = ref(0)
 const errorMessage = ref('')
 const filters = ref<Record<string, string>>({})
 const filterFields = columns.slice(0, 3)
+
+function displayValue(row: EntryRow, column: string): string | number | boolean {
+  if (column === '所属站点') {
+    const code = String(row['所属站点'] ?? '')
+    if (!code) {
+      return '—'
+    }
+    const station = stationSnapshot(code)
+    return station ? `${station.code}（${station.status}）` : `${code}（主档缺失）`
+  }
+  return row[column] ?? '—'
+}
+
+// 列表入口与检定详情入口共用同一核查：撤销站点的待办只读，悬空站点拒绝处置。
+function isReadonly(row: EntryRow): boolean {
+  const code = String(row['所属站点'] ?? '').trim()
+  if (!code) {
+    return false
+  }
+  const station = stationSnapshot(code)
+  return station === null || station.status === '已撤销'
+}
+
+function readonlyTitle(row: EntryRow): string {
+  const station = stationSnapshot(String(row['所属站点'] ?? ''))
+  return station === null ? '所属站点主档不存在，禁止处置' : '所属站点已撤销，历史检定记录只读'
+}
+
 const statusSummary = computed(() =>
   statuses.map((status: string) => ({
     status,
     count: rows.value.filter((row) => String(row.status) === status).length,
   })),
 )
+const stats = computed(() => [
+  { label: "待送检仪器", value: rows.value.filter((row) => row.pending).length },
+  { label: "已合格仪器", value: rows.value.filter((row) => String(row.status) === '已合格').length },
+  { label: "不合格仪器", value: rows.value.filter((row) => String(row.status) === '不合格').length },
+])
 
 function resetFilters() {
   filters.value = {}

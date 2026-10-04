@@ -18,6 +18,8 @@ export type ModuleMeta = {
   actions: string[]
   actionTargets: Record<string, string>
   metrics: string[]
+  // 关联到水文监测站主档的字段：配置后，该模块的处置会随站点状态做只读/越权校验。
+  stationField?: string
 }
 
 export type PageResult = {

@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import Dashboard from '@/views/Dashboard.vue'
 const Station = () => import('@/views/station/index.vue')
+const StationDetail = () => import('@/views/station/detail.vue')
 const Waterlevel = () => import('@/views/waterlevel/index.vue')
 const Discharge = () => import('@/views/discharge/index.vue')
 const Rainfall = () => import('@/views/rainfall/index.vue')
@@ -17,7 +18,9 @@ const Sediment = () => import('@/views/sediment/index.vue')
 const Communication = () => import('@/views/communication/index.vue')
 const Stationhouse = () => import('@/views/stationhouse/index.vue')
 const Calibration = () => import('@/views/calibration/index.vue')
+const CalibrationDetail = () => import('@/views/calibration/detail.vue')
 const Inspection = () => import('@/views/inspection/index.vue')
+const InspectionDetail = () => import('@/views/inspection/detail.vue')
 const Plan = () => import('@/views/plan/index.vue')
 
 const router = createRouter({
@@ -25,6 +28,7 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'dashboard', component: Dashboard },
     { path: '/station', name: 'station', component: Station },
+    { path: '/station/:id', name: 'station-detail', component: StationDetail },
     { path: '/waterlevel', name: 'waterlevel', component: Waterlevel },
     { path: '/discharge', name: 'discharge', component: Discharge },
     { path: '/rainfall', name: 'rainfall', component: Rainfall },
@@ -40,7 +44,9 @@ const router = createRouter({
     { path: '/communication', name: 'communication', component: Communication },
     { path: '/stationhouse', name: 'stationhouse', component: Stationhouse },
     { path: '/calibration', name: 'calibration', component: Calibration },
+    { path: '/calibration/:id', name: 'calibration-detail', component: CalibrationDetail },
     { path: '/inspection', name: 'inspection', component: Inspection },
+    { path: '/inspection/:id', name: 'inspection-detail', component: InspectionDetail },
     { path: '/plan', name: 'plan', component: Plan },
   ],
 })

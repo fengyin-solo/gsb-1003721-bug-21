@@ -43,14 +43,17 @@
       </thead>
       <tbody>
         <tr v-for="row in rows" :key="String(row.id)">
-          <td v-for="column in columns" :key="column">{{ row[column] ?? '—' }}</td>
+          <td v-for="column in columns" :key="column">{{ displayValue(row, column) }}</td>
           <td>{{ row.status }}</td>
           <td class="row-actions">
+            <RouterLink class="link" :to="`/inspection/${row.id}`">详情</RouterLink>
             <button
               v-for="action in actions"
               :key="action"
               class="link"
               type="button"
+              :disabled="isReadonly(row)"
+              :title="isReadonly(row) ? readonlyTitle(row) : ''"
               @click="runAction(action, row)"
             >
               {{ action }}
@@ -78,26 +81,55 @@ import {
   listEntries,
   moduleMeta,
   runAction as applyAction,
+  stationSnapshot,
 } from '@/api/local-service'
 import type { EntryRow } from '@/data/types'
 
 const meta = moduleMeta('inspection')
-const columns = ["记录编号", "站点编号", "巡检日期", "巡检人员", "检查项目", "发现问题", "处理措施", "巡检状态"]
+const baseColumns = ["记录编号", "站点编号", "巡检日期", "巡检人员", "检查项目", "发现问题", "处理措施", "巡检状态"]
+// 所在河流 / 站点运行状态不是巡检自带字段，统一从站点主档取，列表与详情同口径。
+const columns = ["记录编号", "站点编号", "所在河流", "站点运行状态", "巡检日期", "巡检人员", "检查项目", "发现问题", "处理措施", "巡检状态"]
 const actions = ["完成巡检", "报告故障", "确认处置"]
 const statuses = ["待巡检", "已巡检", "发现故障", "已处置"]
-const stats = [{"label": "本月巡检次数", "value": 0}, {"label": "已巡检站点", "value": 0}, {"label": "待处置故障", "value": 0}]
 
 const rows = ref<EntryRow[]>([])
 const total = ref(0)
 const errorMessage = ref('')
 const filters = ref<Record<string, string>>({})
-const filterFields = columns.slice(0, 3)
+const filterFields = baseColumns.slice(0, 3)
+
+function displayValue(row: EntryRow, column: string): string | number | boolean {
+  if (column === '所在河流' || column === '站点运行状态') {
+    const station = stationSnapshot(String(row['站点编号'] ?? ''))
+    if (!station) {
+      return '主档缺失'
+    }
+    return column === '所在河流' ? station.river || '—' : station.status
+  }
+  return row[column] ?? '—'
+}
+
+function isReadonly(row: EntryRow): boolean {
+  const station = stationSnapshot(String(row['站点编号'] ?? ''))
+  return station === null || station.status === '已撤销'
+}
+
+function readonlyTitle(row: EntryRow): string {
+  const station = stationSnapshot(String(row['站点编号'] ?? ''))
+  return station === null ? '所属站点主档不存在，禁止处置' : '所属站点已撤销，历史记录只读'
+}
+
 const statusSummary = computed(() =>
   statuses.map((status: string) => ({
     status,
     count: rows.value.filter((row) => String(row.status) === status).length,
   })),
 )
+const stats = computed(() => [
+  { label: "本月巡检次数", value: rows.value.length },
+  { label: "已巡检站点", value: rows.value.filter((row) => String(row.status) !== '待巡检').length },
+  { label: "待处置故障", value: rows.value.filter((row) => row.pending).length },
+])
 
 function resetFilters() {
   filters.value = {}

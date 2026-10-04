@@ -43,14 +43,17 @@
       </thead>
       <tbody>
         <tr v-for="row in rows" :key="String(row.id)">
-          <td v-for="column in columns" :key="column">{{ row[column] ?? '—' }}</td>
+          <td v-for="column in columns" :key="column">{{ displayValue(row, column) }}</td>
           <td>{{ row.status }}</td>
           <td class="row-actions">
+            <RouterLink class="link" :to="`/station/${row.id}`">详情</RouterLink>
             <button
               v-for="action in actions"
               :key="action"
               class="link"
               type="button"
+              :disabled="String(row.status) === '已撤销'"
+              :title="String(row.status) === '已撤销' ? '站点已撤销，只读' : ''"
               @click="runAction(action, row)"
             >
               {{ action }}
@@ -85,19 +88,30 @@ const meta = moduleMeta('station')
 const columns = ["站点编号", "站点名称", "站点类型", "所在河流", "经纬度坐标", "建站年份", "管理单位", "运行状态"]
 const actions = ["升级为加强", "登记故障", "撤销站点"]
 const statuses = ["正常运行", "设备故障", "汛期加强", "暂停运行", "已撤销"]
-const stats = [{"label": "站点总数", "value": 0}, {"label": "正常运行数", "value": 0}, {"label": "故障站点数", "value": 0}]
 
 const rows = ref<EntryRow[]>([])
 const total = ref(0)
 const errorMessage = ref('')
 const filters = ref<Record<string, string>>({})
 const filterFields = columns.slice(0, 3)
+// 运行状态以 status 为唯一事实源，列表/详情共用，不再展示重复的脏字段。
+function displayValue(row: EntryRow, column: string): string | number | boolean {
+  if (column === '运行状态') {
+    return String(row.status)
+  }
+  return row[column] ?? '—'
+}
 const statusSummary = computed(() =>
   statuses.map((status: string) => ({
     status,
     count: rows.value.filter((row) => String(row.status) === status).length,
   })),
 )
+const stats = computed(() => [
+  { label: "站点总数", value: rows.value.length },
+  { label: "正常运行数", value: rows.value.filter((row) => String(row.status) === '正常运行').length },
+  { label: "故障站点数", value: rows.value.filter((row) => String(row.status) === '设备故障').length },
+])
 
 function resetFilters() {
   filters.value = {}

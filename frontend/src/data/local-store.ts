@@ -41,11 +41,19 @@ export function listRows(key: string): EntryRow[] {
 }
 
 export function saveRows(key: string, rows: EntryRow[]): void {
-  const next = { ...allRows(), [key]: rows }
-  cache = next
+  commitSnapshots({ [key]: rows })
+}
+
+// 多模块一起落库：先把整份快照序列化好，再只写一次 localStorage，写入抛错时缓存与存储都不动，
+// 避免「站点状态先写进去、关联业务收尾失败」这种半截状态。
+export function commitSnapshots(updates: Record<string, EntryRow[]>): void {
+  const snapshot = { ...allRows(), ...updates }
+  // 序列化在写库之前完成：快照无法落库时直接抛出，调用方据此回退，内存态保持原状。
+  const serialized = JSON.stringify(snapshot)
   if (typeof window !== 'undefined' && window.localStorage) {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+    window.localStorage.setItem(STORAGE_KEY, serialized)
   }
+  cache = snapshot
 }
 
 export function resetRows(key: string): EntryRow[] {
