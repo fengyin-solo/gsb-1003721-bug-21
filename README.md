@@ -68,4 +68,17 @@ npm run build
 - 字段、状态、动作与流转目标集中在 `frontend/src/data/modules.ts`；示例数据在
   `frontend/src/data/seed.ts`。
 - 状态流转只允许在 `local-service.ts` 里改，页面组件不做业务判断。
+- 各模块的「站点编号」必须引用监测站点档案里的真实编号（`STAT-XXXX`）；每行末尾的
+  「XX状态」字段是 `status` 的镜像，流转时由服务层同步，历史数据读取时自动对齐（只读兼容）。
+- 写操作先过权限核查（`stores/session.ts` 的角色策略，越权一律拒绝），再过站点状态核查：
+  站点已撤销则其名下关联记录只读；撤销站点会级联停用该站在途的仪器检定记录（清出待办），
+  重复撤销只生效一次。主记录与级联记录一次原子落库，任一失败全部不写入。
 - 想回到初始数据：清掉浏览器里 `hydrology-monitor-station:entries` 这一项，或调用 `resetModule(模块)`。
+
+## 测试
+
+```bash
+cd frontend
+npm run test        # vitest：撤销级联 / 越权拒绝 / 幂等 / 原子落库 / 历史数据兼容
+npm run typecheck   # vue-tsc 类型检查
+```
